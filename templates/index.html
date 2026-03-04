@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Threat Intelligence Analyzer</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+#loadingSection { display:none; }
+</style>
+
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-5">
+<div class="card shadow p-4">
+
+<h2 class="text-center mb-4">🛡 Threat Intelligence Analyzer</h2>
+
+<form method="POST" onsubmit="mostrarCarga()">
+
+<div class="mb-3">
+<label class="form-label">Indicadores</label>
+<textarea id="indicadores" name="indicadores"
+class="form-control" rows="6"
+placeholder="Ingrese aquí su Indicador de Compromiso (IP, URL, DOMINIO, HASH)"></textarea>
+</div>
+
+<button type="submit" class="btn btn-primary w-100">
+Analizar
+</button>
+</form>
+
+<!-- BARRA DE PROGRESO -->
+<div id="loadingSection" class="mt-4">
+
+<h5 class="text-center">⏳ Analizando indicadores, por favor espere...</h5>
+
+<div class="progress mt-3">
+<div id="progressBar"
+class="progress-bar progress-bar-striped progress-bar-animated"
+role="progressbar"
+style="width:0%">
+</div>
+</div>
+
+<p class="mt-2 text-center">
+Tiempo estimado aproximado:
+<strong><span id="tiempoEstimado">Calculando...</span></strong>
+</p>
+
+</div>
+
+{% if results %}
+<hr>
+
+<p><strong>Tiempo total:</strong> {{ elapsed_time }} segundos</p>
+
+<table class="table table-bordered table-hover mt-3 text-center align-middle">
+<thead class="table-dark">
+<tr>
+<th>Indicador</th>
+<th>Tipo Detectado</th>
+<th>Estado</th>
+<th>Número de reportes maliciosos en VirusTotal</th>
+<th>Reportes sospechosos en VirusTotal</th>
+<!--<th>Reputación Cisco Talos</th> -->
+<th>Puntaje de AbuseIPDB</th>
+<th>País</th>
+</tr>
+</thead>
+
+<tbody>
+{% for row in results %}
+<tr>
+<td><strong>{{ row.indicador }}</strong></td>
+<td>{{ row.tipo }}</td>
+
+<td>
+{% if row.tipo == "IP" %}
+{% if row.vt_malicious > 0 or row.abuse_score > 50 %}
+<span class="badge bg-danger">Malicioso</span>
+{% else %}
+<span class="badge bg-success">No malicioso</span>
+{% endif %}
+{% else %}
+{% if row.vt_malicious > 0 %}
+<span class="badge bg-danger">Malicioso</span>
+{% else %}
+<span class="badge bg-success">No malicioso</span>
+{% endif %}
+{% endif %}
+</td>
+
+<td>{{ row.vt_malicious }}</td>
+<td>{{ row.vt_suspicious }}</td>
+<!--
+<td>
+{% if row.talos_reputation == "Mala" %}
+    <span class="badge bg-danger">Mala</span>
+{% elif row.talos_reputation == "Neutral" %}
+    <span class="badge bg-warning text-dark">Neutral</span>
+{% elif row.talos_reputation == "Buena" %}
+    <span class="badge bg-success">Buena</span>
+{% else %}
+    -
+{% endif %}
+</td>
+-->
+<td>
+{% if row.tipo == "IP" %}
+    {% if row.abuse_score > 75 %}
+        <span class="badge bg-danger">{{ row.abuse_score }}%</span>
+    {% elif row.abuse_score > 40 %}
+        <span class="badge bg-warning text-dark">{{ row.abuse_score }}%</span>
+    {% else %}
+        <span class="badge bg-success">{{ row.abuse_score }}%</span>
+    {% endif %}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td>{{ row.country }}</td>
+
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<a href="/descargar" class="btn btn-success w-100">
+Descargar Excel
+</a>
+
+<a href="{{ url_for('limpiar') }}" class="btn btn-secondary w-100 mt-2">
+Nueva consulta
+</a>
+
+{% endif %}
+
+</div>
+</div>
+
+<script>
+function mostrarCarga() {
+
+let texto = document.getElementById("indicadores").value.trim();
+if (!texto) return;
+
+let cantidad = texto.split("\n").filter(x => x.trim() !== "").length;
+
+document.getElementById("loadingSection").style.display = "block";
+
+let tiempoEstimado = cantidad * 2;
+document.getElementById("tiempoEstimado").innerText = tiempoEstimado + " segundos aprox.";
+
+let progreso = 0;
+let barra = document.getElementById("progressBar");
+
+let intervalo = setInterval(function() {
+progreso += 5;
+barra.style.width = progreso + "%";
+
+if (progreso >= 100) {
+clearInterval(intervalo);
+}
+}, (tiempoEstimado * 1000) / 20);
+}
+</script>
+
+</body>
+</html>
